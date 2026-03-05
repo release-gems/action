@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { default as artifactClient } from "@actions/artifact";
 import * as core from "@actions/core";
 import * as z from "zod";
+import type { Gemspec } from "./gem";
 
 const FilenameSchema = z
   .string()
@@ -23,29 +24,18 @@ const GemArtifactIndexSchema = z.object({
 });
 export type GemArtifactIndex = z.infer<typeof GemArtifactIndexSchema>;
 
-/**
- * Upload a gem artifact named release-gems-{jobId}-{gemName}.
- * The artifact contains the .gem file and its .sigstore.json attestation.
- *
- * @param jobId          Sanitized job identifier.
- * @param gemName        Gem name from gemspec.
- * @param gemArtifact
- * @param retentionDays  Optional retention period in days.
- */
 export async function uploadGemArtifact({
-  jobId,
-  gemName,
+  gemspec,
   directory,
   index,
   retentionDays,
 }: {
-  jobId: string;
-  gemName: string;
+  gemspec: Gemspec;
   directory: string;
   index: GemArtifactIndex;
   retentionDays?: number;
 }): Promise<void> {
-  const artifactName = `release-gems-${jobId}-${gemName}`;
+  const artifactName = `release-gems-${gemspec.name}-${gemspec.platform}`;
   const indexPath = path.join(directory, "index.json");
 
   await fs.promises.writeFile(indexPath, JSON.stringify(index));

@@ -5,10 +5,6 @@ inputs:
     description: GitHub token for uploading artifacts and creating attestations
     required: false
     default: ${{ github.token }}
-  job:
-    description: Identifier to differentiate concurrent build jobs (e.g., for different architectures). Non-alphanumeric-or-hyphen characters are sanitized to hyphens.
-    required: false
-    default: default
   retention-days:
     description: Artifact retention period in days. Defaults to the account-level GitHub Actions default.
     required: false

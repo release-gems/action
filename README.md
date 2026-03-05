@@ -100,7 +100,6 @@ on:
 | Input | Default | Description |
 |---|---|---|
 | `github-token` | `secrets.GITHUB_TOKEN` | Token for uploading artifacts and creating attestations. |
-| `job` | `default` | Identifier for concurrent build jobs (e.g., architecture name). |
 | `retention-days` | GitHub account default | Artifact retention period in days. |
 | `ruby` | `ruby` | Path or name of the Ruby binary. |
 

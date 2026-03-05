@@ -14,10 +14,6 @@ import { getInputs } from "./lib/input";
 import { type Target, resolveTargets, selectTargets } from "./lib/project";
 import { parseTag } from "./lib/tag";
 
-function sanitizeJobId(job: string): string {
-  return job.replace(/[^a-zA-Z0-9-]/g, "-");
-}
-
 type BuildResult = GemBuildResult & {
   gemspec: Gemspec;
   provenancePath: string;
@@ -101,11 +97,9 @@ async function* buildTargets({
 
 async function uploadArtifacts({
   results,
-  jobId,
   retentionDays,
 }: {
   results: BuildResult[];
-  jobId: string;
   retentionDays: number | undefined;
 }): Promise<void> {
   for (const result of results) {
@@ -113,8 +107,7 @@ async function uploadArtifacts({
 
     await core.group(`Upload artifacts for ${result.gemspec.name}`, async () =>
       uploadGemArtifact({
-        jobId,
-        gemName: result.gemspec.name,
+        gemspec: result.gemspec,
         directory,
         index: {
           gem: {
@@ -136,12 +129,10 @@ async function uploadArtifacts({
 async function run(): Promise<void> {
   const {
     "github-token": token,
-    job: jobId,
     "retention-days": retentionDays,
     ruby,
   } = getInputs({
     "github-token": z.string(),
-    job: z.string().default("default").transform(sanitizeJobId),
     "retention-days": z.number().optional(),
     ruby: z.string().default("ruby"),
   });
@@ -161,7 +152,7 @@ async function run(): Promise<void> {
       token,
     }),
   );
-  await uploadArtifacts({ results, jobId, retentionDays });
+  await uploadArtifacts({ results, retentionDays });
 }
 
 export const completed = run().catch((err) => {

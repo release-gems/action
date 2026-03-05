@@ -34,8 +34,7 @@ describe("uploadGemArtifact", () => {
 
   it("calls uploadArtifact with the correct artifact name", async () => {
     await uploadGemArtifact({
-      jobId: "job123",
-      gemName: "my-gem",
+      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
       directory: tempDir,
       index: {
         gem: { filename: "my-gem-1.0.0.gem" },
@@ -44,13 +43,12 @@ describe("uploadGemArtifact", () => {
     });
 
     const [name] = mockUploadArtifact.mock.calls[0];
-    expect(name).toBe("release-gems-job123-my-gem");
+    expect(name).toBe("release-gems-my-gem-ruby");
   });
 
   it("calls uploadArtifact with index, gem, and attestation files", async () => {
     await uploadGemArtifact({
-      jobId: "job123",
-      gemName: "my-gem",
+      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
       directory: tempDir,
       index: {
         gem: { filename: "my-gem-1.0.0.gem" },
@@ -73,8 +71,7 @@ describe("uploadGemArtifact", () => {
 
   it("uses directory as rootDirectory", async () => {
     await uploadGemArtifact({
-      jobId: "job123",
-      gemName: "my-gem",
+      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
       directory: tempDir,
       index: { gem: { filename: "my-gem-1.0.0.gem" }, attestations: [] },
     });
@@ -85,8 +82,7 @@ describe("uploadGemArtifact", () => {
 
   it("passes retentionDays in options when provided", async () => {
     await uploadGemArtifact({
-      jobId: "job123",
-      gemName: "my-gem",
+      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
       directory: tempDir,
       index: { gem: { filename: "my-gem-1.0.0.gem" }, attestations: [] },
       retentionDays: 30,
@@ -98,8 +94,7 @@ describe("uploadGemArtifact", () => {
 
   it("uses 0 as retentionDays when not provided", async () => {
     await uploadGemArtifact({
-      jobId: "job123",
-      gemName: "my-gem",
+      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
       directory: tempDir,
       index: { gem: { filename: "my-gem-1.0.0.gem" }, attestations: [] },
     });
@@ -108,16 +103,15 @@ describe("uploadGemArtifact", () => {
     expect(options).toEqual({ retentionDays: 0 });
   });
 
-  it("constructs artifact name as release-gems-{jobId}-{gemName}", async () => {
+  it("constructs artifact name as release-gems-{gemspec.name}-{gemspec.platform}", async () => {
     await uploadGemArtifact({
-      jobId: "build-42",
-      gemName: "awesome-lib",
+      gemspec: { name: "awesome-lib", version: "2.0.0", platform: "java" },
       directory: tempDir,
       index: { gem: { filename: "awesome-lib-2.0.0.gem" }, attestations: [] },
     });
 
     const [name] = mockUploadArtifact.mock.calls[0];
-    expect(name).toBe("release-gems-build-42-awesome-lib");
+    expect(name).toBe("release-gems-awesome-lib-java");
   });
 });
 
@@ -177,9 +171,9 @@ describe("downloadGemArtifacts", () => {
 
     mockListArtifacts.mockResolvedValue({
       artifacts: [
-        { id: 10, name: "release-gems-job1-my-gem" },
+        { id: 10, name: "release-gems-my-gem-ruby" },
         { id: 20, name: "other-artifact" },
-        { id: 30, name: "release-gems-job1-another-gem" },
+        { id: 30, name: "release-gems-another-gem-ruby" },
       ],
     });
     mockDownloadArtifact

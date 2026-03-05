@@ -120,7 +120,7 @@ describe("build action", () => {
     expect(mockSetFailed).not.toHaveBeenCalled();
     expect(mockUploadArtifact).toHaveBeenCalledOnce();
     expect(mockUploadArtifact).toHaveBeenCalledWith(
-      "release-gems-default-foo",
+      "release-gems-foo-ruby",
       [
         expect.stringContaining("index.json"),
         expect.stringContaining("foo-1.0.0.gem"),
@@ -206,7 +206,7 @@ describe("build action", () => {
     expect(mockSetFailed).not.toHaveBeenCalled();
     expect(mockUploadArtifact).toHaveBeenCalledTimes(1);
     expect(mockUploadArtifact).toHaveBeenCalledWith(
-      "release-gems-default-bar",
+      "release-gems-bar-ruby",
       [
         expect.stringContaining("index.json"),
         expect.stringContaining("bar-2.0.0.gem"),
