@@ -11,11 +11,7 @@ import { type HookConfig, loadConfigLocal } from "./lib/config";
 import { type GemBuildResult, type Gemspec, buildGem } from "./lib/gem";
 import { runHook } from "./lib/hook";
 import { getInputs } from "./lib/input";
-import {
-  type TargetGem,
-  resolveGemCandidates,
-  selectTargets,
-} from "./lib/project";
+import { type Target, resolveTargets, selectTargets } from "./lib/project";
 import { parseTag } from "./lib/tag";
 
 function sanitizeJobId(job: string): string {
@@ -32,27 +28,28 @@ async function build({
   ruby,
   token,
 }: {
-  target: TargetGem;
+  target: Target;
   ruby: string;
   token: string;
 }): Promise<BuildResult> {
+  const gemDir = path.dirname(target.gemspecPath);
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "release-gems-"));
   const hookEnv = {
-    RELEASE_GEMS_GEM_NAME: target.info.name,
-    RELEASE_GEMS_GEM_VERSION: target.info.version,
-    RELEASE_GEMS_GEMSPEC_PATH: target.gemspecRelPath,
+    RELEASE_GEMS_GEM_NAME: target.gemspec.name,
+    RELEASE_GEMS_GEM_VERSION: target.gemspec.version,
+    RELEASE_GEMS_GEMSPEC_PATH: target.gemspecPath,
   };
 
-  await core.group(`Run prebuild hook for ${target.info.name}`, async () =>
-    runHook(target.gemConfig.hooks?.prebuild, target.dir, hookEnv),
+  await core.group(`Run prebuild hook for ${target.gemspec.name}`, async () =>
+    runHook(target.gemConfig.hooks?.prebuild, gemDir, hookEnv),
   );
 
-  const result = await core.group(`Pack ${target.info.name}`, async () => {
+  const result = await core.group(`Pack ${target.gemspec.name}`, async () => {
     return buildGem(ruby, target.gemspecPath, outDir);
   });
 
   const provenancePath = await core.group(
-    `Attest provenance for ${target.info.name}`,
+    `Attest provenance for ${target.gemspec.name}`,
     async () => {
       const sha256 = createHash("sha256")
         .update(fs.readFileSync(result.path))
@@ -69,11 +66,11 @@ async function build({
     },
   );
 
-  await core.group(`Run postbuild hook for ${target.info.name}`, async () =>
-    runHook(target.gemConfig.hooks?.postbuild, target.dir, hookEnv),
+  await core.group(`Run postbuild hook for ${target.gemspec.name}`, async () =>
+    runHook(target.gemConfig.hooks?.postbuild, gemDir, hookEnv),
   );
 
-  return { ...result, gemspec: target.info, provenancePath };
+  return { ...result, gemspec: target.gemspec, provenancePath };
 }
 
 async function* buildTargets({
@@ -85,7 +82,7 @@ async function* buildTargets({
 }: {
   globalHooks: HookConfig | undefined;
   workspace: string;
-  targets: TargetGem[];
+  targets: Target[];
   ruby: string;
   token: string;
 }): AsyncGenerator<BuildResult> {
@@ -94,9 +91,7 @@ async function* buildTargets({
   );
 
   for (const target of targets) {
-    yield await core.group(`Build ${target.gemspecRelPath}`, async () =>
-      build({ target, ruby, token }),
-    );
+    yield await build({ target, ruby, token });
   }
 
   await core.group("Run global postbuild hook", async () =>
@@ -155,7 +150,7 @@ async function run(): Promise<void> {
   const config = await loadConfigLocal(workspace);
   const tagInfo = parseTag(github.context.ref);
 
-  const candidates = resolveGemCandidates(workspace, config, ruby);
+  const candidates = resolveTargets(workspace, config, ruby);
   const targets = selectTargets(candidates, tagInfo);
   const results = await Array.fromAsync(
     buildTargets({

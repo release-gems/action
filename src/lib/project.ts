@@ -4,27 +4,21 @@ import type { Config, GemConfig } from "./config";
 import { type Gemspec, loadGemspec } from "./gem";
 import type { TagInfo } from "./tag";
 
-export interface TargetGem {
+export interface Target {
   gemConfig: GemConfig;
-  dir: string;
   gemspecPath: string;
-  gemspecRelPath: string;
-  info: Gemspec;
+  gemspec: Gemspec;
 }
 
-function resolveGemspec(
-  workspace: string,
-  gemConfig: GemConfig,
-): { dir: string; gemspecPath: string; gemspecRelPath: string } {
+function findGemspec(workspace: string, gemConfig: GemConfig): string {
   const dir = path.join(workspace, gemConfig.directory ?? ".");
 
   if (gemConfig.gemspec) {
     const gemspecPath = path.join(dir, gemConfig.gemspec);
-    return { dir, gemspecPath, gemspecRelPath: gemConfig.gemspec };
+    return gemspecPath;
   }
 
-  const entries = fs.readdirSync(dir);
-  const gemspecs = entries.filter((f) => f.endsWith(".gemspec"));
+  const gemspecs = fs.readdirSync(dir).filter((f) => f.endsWith(".gemspec"));
 
   if (gemspecs.length === 0) {
     throw new Error(`No .gemspec files found in ${dir}`);
@@ -35,43 +29,40 @@ function resolveGemspec(
     );
   }
 
-  const gemspecRelPath = gemspecs[0];
-  const gemspecPath = path.join(dir, gemspecRelPath);
-  return { dir, gemspecPath, gemspecRelPath };
+  return path.join(dir, gemspecs[0]);
 }
 
-export function resolveGemCandidates(
+export function resolveTargets(
   workspace: string,
   config: Config,
   ruby: string,
-): TargetGem[] {
-  // Explicit empty array means "build nothing"; absent key means auto-detect.
+): Target[] {
+  // Explicit empty array means "build nothing"; absent key or null means auto-detect.
   const gemConfigs: GemConfig[] =
     config.gems !== undefined ? config.gems : [{}];
 
-  const candidates: TargetGem[] = [];
+  const candidates: Target[] = [];
   for (const gemConfig of gemConfigs) {
-    const { dir, gemspecPath, gemspecRelPath } = resolveGemspec(
-      workspace,
-      gemConfig,
-    );
-    const info = loadGemspec(ruby, gemspecPath);
-    candidates.push({ gemConfig, dir, gemspecPath, gemspecRelPath, info });
+    const gemspecPath = findGemspec(workspace, gemConfig);
+    const gemspec = loadGemspec(ruby, gemspecPath);
+    candidates.push({ gemConfig, gemspecPath, gemspec });
   }
   return candidates;
 }
 
 export function selectTargets(
-  candidates: TargetGem[],
+  candidates: Target[],
   tagInfo: TagInfo | null,
-): TargetGem[] {
+): Target[] {
   if (tagInfo === null) {
     return candidates;
   }
 
-  let targets: TargetGem[];
+  let targets: Target[];
   if (tagInfo.kind === "per-gem") {
-    const matched = candidates.filter((t) => t.info.name === tagInfo.gemName);
+    const matched = candidates.filter(
+      (t) => t.gemspec.name === tagInfo.gemName,
+    );
     if (matched.length === 0) {
       throw new Error(
         `No gem named "${tagInfo.gemName}" found for per-gem tag`,
@@ -83,9 +74,9 @@ export function selectTargets(
   }
 
   for (const target of targets) {
-    if (target.info.version !== tagInfo.version) {
+    if (target.gemspec.version !== tagInfo.version) {
       throw new Error(
-        `Version mismatch for gem "${target.info.name}": gemspec has "${target.info.version}" but tag specifies "${tagInfo.version}"`,
+        `Version mismatch for gem "${target.gemspec.name}": gemspec has "${target.gemspec.version}" but tag specifies "${tagInfo.version}"`,
       );
     }
   }
