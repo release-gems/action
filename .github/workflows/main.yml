@@ -50,7 +50,10 @@ jobs:
       - uses: actions/github-script@v8
         with:
           script: |
-            const ref = (await github.rest.git.getRef({ ...context.repo, ref: context.ref })).data;
+            const ref = (await github.rest.git.getRef({
+              ...context.repo,
+              ref: context.ref.replace(/^refs\//, ''),
+            })).data;
             if (ref.object.type !== "tag") throw new Error("ref is not an annotated tag");
             const tag = (await github.rest.git.getTag({ ...context.repo, tag_sha: ref.object.sha })).data;
             if (!tag.verification?.verified) throw new Error(`tag is not verified: ${tag.verification?.reason}`);
@@ -58,11 +61,11 @@ jobs:
               ...context.repo,
               tag_name: tag.tag,
               name: tag.tag,
-              prerelease: !!tag.tag.match(/[a-z]/i),
+              prerelease: !!tag.tag.replace(/^v/, '').match(/[a-z]/i),
               draft: false,
             });
             await github.rest.git.updateRef({
               ...context.repo,
-              ref: ref.ref.split('.')[0],
+              ref: context.ref.replace(/^refs\//, ''),
               sha: tag.sha,
             });
