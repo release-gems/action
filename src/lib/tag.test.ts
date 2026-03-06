@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { parseTag } from "./tag";
+import { describe, expect, it, vi } from "vitest";
+import { fetchMessage, parseTag } from "./tag";
 
 describe("parseTag", () => {
   describe("unified tags", () => {
@@ -102,6 +102,96 @@ describe("parseTag", () => {
 
     it("treats refs/tags/no-version-prefix as branch", () => {
       expect(parseTag("refs/tags/no-version-prefix")).toEqual(null);
+    });
+  });
+});
+
+describe("fetchMessage", () => {
+  function makeOctokit(refType: "tag" | "commit", tagMessage = "") {
+    return {
+      rest: {
+        git: {
+          getRef: vi.fn().mockResolvedValue({
+            data: { object: { type: refType, sha: "deadbeef" } },
+          }),
+          getTag: vi.fn().mockResolvedValue({
+            data: { message: tagMessage },
+          }),
+        },
+      },
+    };
+  }
+
+  const repo = { owner: "test-owner", repo: "test-repo" };
+
+  it("returns null for a lightweight tag", async () => {
+    const octokit = makeOctokit("commit");
+    const result = await fetchMessage({
+      // biome-ignore lint/suspicious/noExplicitAny: mock object
+      octokit: octokit as any,
+      repo,
+      tagName: "v1.0.0",
+    });
+    expect(result).toBeNull();
+    expect(octokit.rest.git.getRef).toHaveBeenCalledWith({
+      ...repo,
+      ref: "tags/v1.0.0",
+    });
+    expect(octokit.rest.git.getTag).not.toHaveBeenCalled();
+  });
+
+  it("returns the message for an annotated tag", async () => {
+    const octokit = makeOctokit("tag", "My release notes\n");
+    const result = await fetchMessage({
+      // biome-ignore lint/suspicious/noExplicitAny: mock object
+      octokit: octokit as any,
+      repo,
+      tagName: "v2.0.0",
+    });
+    expect(result).toBe("My release notes");
+    expect(octokit.rest.git.getTag).toHaveBeenCalledWith({
+      ...repo,
+      tag_sha: "deadbeef",
+    });
+  });
+
+  it("strips a PGP signature from the tag message", async () => {
+    const signed =
+      "Signed release\n\n-----BEGIN PGP SIGNATURE-----\nabc\n-----END PGP SIGNATURE-----\n";
+    const octokit = makeOctokit("tag", signed);
+    const result = await fetchMessage({
+      // biome-ignore lint/suspicious/noExplicitAny: mock object
+      octokit: octokit as any,
+      repo,
+      tagName: "v3.0.0",
+    });
+    expect(result).toBe("Signed release");
+  });
+
+  it("strips an SSH signature from the tag message", async () => {
+    const signed =
+      "My release\n\n-----BEGIN SSH SIGNATURE-----\nxyz\n-----END SSH SIGNATURE-----\n";
+    const octokit = makeOctokit("tag", signed);
+    const result = await fetchMessage({
+      // biome-ignore lint/suspicious/noExplicitAny: mock object
+      octokit: octokit as any,
+      repo,
+      tagName: "v4.0.0",
+    });
+    expect(result).toBe("My release");
+  });
+
+  it("uses full tag name including gem prefix for per-gem tags", async () => {
+    const octokit = makeOctokit("tag", "gem release\n");
+    await fetchMessage({
+      // biome-ignore lint/suspicious/noExplicitAny: mock object
+      octokit: octokit as any,
+      repo,
+      tagName: "my-gem/v1.0.0",
+    });
+    expect(octokit.rest.git.getRef).toHaveBeenCalledWith({
+      ...repo,
+      ref: "tags/my-gem/v1.0.0",
     });
   });
 });

@@ -13,6 +13,8 @@ const {
   mockUploadReleaseAsset,
   mockUpdateRelease,
   mockGetContent,
+  mockGetRef,
+  mockGetTag,
   mockListArtifacts,
   mockDownloadArtifact,
   mockFetch,
@@ -23,6 +25,8 @@ const {
   const mockUploadReleaseAsset = vi.fn();
   const mockUpdateRelease = vi.fn();
   const mockGetContent = vi.fn();
+  const mockGetRef = vi.fn();
+  const mockGetTag = vi.fn();
   const mockListArtifacts = vi.fn();
   const mockDownloadArtifact = vi.fn();
   const mockFetch = vi.fn();
@@ -35,6 +39,10 @@ const {
         uploadReleaseAsset: mockUploadReleaseAsset,
         updateRelease: mockUpdateRelease,
         getContent: mockGetContent,
+      },
+      git: {
+        getRef: mockGetRef,
+        getTag: mockGetTag,
       },
     },
   };
@@ -50,6 +58,8 @@ const {
     mockUploadReleaseAsset,
     mockUpdateRelease,
     mockGetContent,
+    mockGetRef,
+    mockGetTag,
     mockListArtifacts,
     mockDownloadArtifact,
     mockFetch,
@@ -177,6 +187,12 @@ beforeEach(() => {
   mockDownloadArtifact
     .mockResolvedValueOnce({ downloadPath: downloadDir1 })
     .mockResolvedValueOnce({ downloadPath: downloadDir2 });
+
+  // Default: lightweight tag → no annotated message, fallback body used.
+  mockGetRef.mockResolvedValue({
+    data: { object: { type: "commit", sha: "abc123" } },
+  });
+  mockGetTag.mockResolvedValue({ data: { message: "" } });
 
   // No existing release by default.
   mockGetReleaseByTag.mockRejectedValue({ status: 404 });
@@ -392,5 +408,69 @@ describe("publish action", () => {
         typeof url === "string" && url.includes("rubygems.org/api/v1/gems"),
     );
     expect(pushCalls.length).toBeGreaterThan(0);
+  });
+
+  it("annotated unified tag: uses tag message as release body", async () => {
+    mockGetRef.mockResolvedValue({
+      data: { object: { type: "tag", sha: "tagobj123" } },
+    });
+    mockGetTag.mockResolvedValue({
+      data: { message: "Bumped to 1.0.0\n\nFull changelog here.\n" },
+    });
+
+    await loadPublish();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockCreateRelease).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tag_name: "v1.0.0",
+        name: "v1.0.0",
+        body: "Bumped to 1.0.0\n\nFull changelog here.",
+      }),
+    );
+  });
+
+  it("annotated tag with PGP signature: strips signature from release body", async () => {
+    const signed =
+      "Release notes\n\n-----BEGIN PGP SIGNATURE-----\nabc123\n-----END PGP SIGNATURE-----\n";
+    mockGetRef.mockResolvedValue({
+      data: { object: { type: "tag", sha: "tagobj456" } },
+    });
+    mockGetTag.mockResolvedValue({ data: { message: signed } });
+
+    await loadPublish();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockCreateRelease).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "Release notes",
+      }),
+    );
+  });
+
+  it("annotated per-gem tag: uses tag message as release body", async () => {
+    process.env.GITHUB_REF = "refs/tags/my-gem/v2.0.0";
+    mockListArtifacts.mockResolvedValue({
+      artifacts: [{ id: 1, name: "release-gems-default-foo" }],
+    });
+    mockDownloadArtifact.mockReset();
+    mockDownloadArtifact.mockResolvedValue({ downloadPath: downloadDir1 });
+    mockGetRef.mockResolvedValue({
+      data: { object: { type: "tag", sha: "tagobjpg" } },
+    });
+    mockGetTag.mockResolvedValue({
+      data: { message: "my-gem release notes\n" },
+    });
+
+    await loadPublish();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockCreateRelease).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tag_name: "my-gem/v2.0.0",
+        name: "my-gem v2.0.0",
+        body: "my-gem release notes",
+      }),
+    );
   });
 });

@@ -8,17 +8,23 @@ import { loadConfig } from "./lib/config";
 import { getInputs } from "./lib/input";
 import { pushToRegistry } from "./lib/registry";
 import * as rel from "./lib/release";
-import { type TagInfo, parseTag } from "./lib/tag";
+import { type TagInfo, fetchMessage, parseTag } from "./lib/tag";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
 
-function composeRelease(tagInfo: TagInfo): { name: string; body: string } {
-  if (tagInfo.kind === "unified") {
-    return { name: tagInfo.tagName, body: `Release ${tagInfo.tagName}` };
-  }
-  // per-gem: "my-gem v1.0.0"
-  const displayName = `${tagInfo.gemName} v${tagInfo.version}`;
-  return { name: displayName, body: `Release ${displayName}` };
+async function composeRelease(
+  tagInfo: TagInfo,
+  octokit: Octokit,
+  repo: { owner: string; repo: string },
+): Promise<{ name: string; body: string }> {
+  const { tagName } = tagInfo;
+  const message = fetchMessage({ octokit, repo, tagName });
+
+  const name =
+    tagInfo.kind === "unified"
+      ? `v${tagInfo.version}`
+      : `${tagInfo.gemName} v${tagInfo.version}`;
+  return { name, body: (await message) ?? `Release ${name}` };
 }
 
 async function pushToRelease({
@@ -81,12 +87,14 @@ async function run(): Promise<void> {
     throw new Error("publish action must be triggered by a tag push");
   }
 
-  const releaseNote = composeRelease(tagInfo);
-
   const octokit = github.getOctokit(token);
   const repo = github.context.repo;
+
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
-  const config = await loadConfig(workspace, github.context, octokit);
+  const [releaseNote, config] = await Promise.all([
+    composeRelease(tagInfo, octokit, repo),
+    loadConfig(workspace, github.context, octokit),
+  ]);
   const registries = config.registries;
 
   const artifacts = await core.group("Download gem artifacts", async () =>

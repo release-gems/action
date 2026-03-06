@@ -1,3 +1,7 @@
+import type * as github from "@actions/github";
+
+type Octokit = ReturnType<typeof github.getOctokit>;
+
 export type TagInfo =
   | { kind: "unified"; tagName: string; version: string }
   | { kind: "per-gem"; tagName: string; gemName: string; version: string };
@@ -31,4 +35,41 @@ export function parseTag(ref: string): TagInfo | null {
   }
 
   return null;
+}
+
+/**
+ * Strip a GPG or SSH signature from a git tag message.
+ * Returns the message trimmed of trailing whitespace before the signature block.
+ */
+function stripSignature(message: string): string {
+  const idx = message.search(/-----BEGIN (PGP|SSH) SIGNATURE-----/);
+  return (idx === -1 ? message : message.slice(0, idx)).trimEnd();
+}
+
+/**
+ * Fetch the message of an annotated tag via the GitHub REST API.
+ * Returns null if the tag is a lightweight (non-annotated) tag.
+ * The returned message has any cryptographic signature stripped.
+ */
+export async function fetchMessage({
+  octokit,
+  repo,
+  tagName,
+}: {
+  octokit: Octokit;
+  repo: { owner: string; repo: string };
+  tagName: string;
+}): Promise<string | null> {
+  const ref = await octokit.rest.git.getRef({
+    ...repo,
+    ref: `tags/${tagName}`,
+  });
+  if (ref.data.object.type !== "tag") {
+    return null;
+  }
+  const tag = await octokit.rest.git.getTag({
+    ...repo,
+    tag_sha: ref.data.object.sha,
+  });
+  return stripSignature(tag.data.message);
 }
