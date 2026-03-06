@@ -57,7 +57,7 @@ describe("exchangeOidcToken", () => {
     await exchangeOidcToken();
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "https://rubygems.org/api/v1/trusted_publisher/exchange_token",
+      "https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token",
       expect.anything(),
     );
   });

@@ -16,7 +16,7 @@ export async function exchangeOidcToken(): Promise<string> {
   const oidcToken = await core.getIDToken("rubygems.org");
 
   const response = await fetch(
-    "https://rubygems.org/api/v1/trusted_publisher/exchange_token",
+    "https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token",
     {
       method: "POST",
       headers: {
