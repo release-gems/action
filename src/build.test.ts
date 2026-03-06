@@ -47,7 +47,14 @@ vi.mock("@actions/github", async (importOriginal) => {
 
 // Helpers
 
-function gemspecContent(name: string, version: string): string {
+function gemspecContent(
+  name: string,
+  version: string,
+  metadata: Record<string, string> = {},
+): string {
+  const metadataLines = Object.entries(metadata).map(
+    ([k, v]) => `  s.metadata["${k}"] = "${v}"`,
+  );
   return [
     "Gem::Specification.new do |s|",
     `  s.name = "${name}"`,
@@ -55,6 +62,7 @@ function gemspecContent(name: string, version: string): string {
     '  s.summary = "Test gem"',
     '  s.authors = ["Test"]',
     "  s.files = []",
+    ...metadataLines,
     "end",
   ].join("\n");
 }
@@ -234,6 +242,73 @@ describe("build action", () => {
       expect.stringContaining("No gem named"),
     );
     expect(mockUploadArtifact).not.toHaveBeenCalled();
+  });
+
+  it("allowed_push_host matches the only configured registry succeeds", async () => {
+    fs.writeFileSync(
+      path.join(workspace, "foo.gemspec"),
+      gemspecContent("foo", "1.0.0", {
+        allowed_push_host: "https://rubygems.org",
+      }),
+    );
+
+    await loadBuild();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockUploadArtifact).toHaveBeenCalledOnce();
+  });
+
+  it("allowed_push_host matches one of multiple registries fails", async () => {
+    fs.writeFileSync(
+      path.join(workspace, "foo.gemspec"),
+      gemspecContent("foo", "1.0.0", {
+        allowed_push_host: "https://rubygems.org",
+      }),
+    );
+    fs.writeFileSync(
+      path.join(workspace, ".github", "release-gems.yml"),
+      "registries:\n- host: https://rubygems.org\n- host: https://gems.example.com\n",
+    );
+
+    await loadBuild();
+
+    expect(mockSetFailed).toHaveBeenCalledWith(
+      expect.stringContaining("allowed_push_host"),
+    );
+  });
+
+  it("allowed_push_host does not match the only registry fails", async () => {
+    fs.writeFileSync(
+      path.join(workspace, "foo.gemspec"),
+      gemspecContent("foo", "1.0.0", {
+        allowed_push_host: "https://gems.example.com",
+      }),
+    );
+
+    await loadBuild();
+
+    expect(mockSetFailed).toHaveBeenCalledWith(
+      expect.stringContaining("allowed_push_host"),
+    );
+    expect(mockUploadArtifact).not.toHaveBeenCalled();
+  });
+
+  it("allowed_push_host matches a non-default single registry succeeds", async () => {
+    fs.writeFileSync(
+      path.join(workspace, "foo.gemspec"),
+      gemspecContent("foo", "1.0.0", {
+        allowed_push_host: "https://gems.example.com",
+      }),
+    );
+    fs.writeFileSync(
+      path.join(workspace, ".github", "release-gems.yml"),
+      "registries:\n- host: https://gems.example.com\n",
+    );
+
+    await loadBuild();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockUploadArtifact).toHaveBeenCalledOnce();
   });
 
   it("per-gem prebuild hook receives gem environment variables", async () => {

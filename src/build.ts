@@ -7,7 +7,11 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as z from "zod";
 import { uploadGemArtifact } from "./lib/artifact";
-import { type HookConfig, loadConfigLocal } from "./lib/config";
+import {
+  type HookConfig,
+  type RegistryConfig,
+  loadConfigLocal,
+} from "./lib/config";
 import { type GemBuildResult, type Gemspec, buildGem } from "./lib/gem";
 import { runHook } from "./lib/hook";
 import { getInputs } from "./lib/input";
@@ -126,6 +130,26 @@ async function uploadArtifacts({
   }
 }
 
+function checkAllowedPushHosts(
+  targets: Target[],
+  registries: RegistryConfig[],
+): void {
+  for (const target of targets) {
+    const allowedPushHost = target.gemspec.metadata.allowed_push_host;
+    if (allowedPushHost === undefined) continue;
+
+    const allowedHost = new URL(allowedPushHost).host;
+    const mismatched = registries.filter(
+      (r) => new URL(r.host).host !== allowedHost,
+    );
+    if (mismatched.length > 0) {
+      throw new Error(
+        `Gem ${target.gemspec.name} has allowed_push_host '${allowedPushHost}' but configured to push to ${mismatched.map((r) => `'${r.host}'`).join(", ")}`,
+      );
+    }
+  }
+}
+
 async function run(): Promise<void> {
   const {
     "github-token": token,
@@ -143,6 +167,7 @@ async function run(): Promise<void> {
 
   const candidates = resolveTargets(workspace, config, ruby);
   const targets = selectTargets(candidates, tagInfo);
+  checkAllowedPushHosts(targets, config.registries);
   const results = await Array.fromAsync(
     buildTargets({
       globalHooks: config.hooks,
