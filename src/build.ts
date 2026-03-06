@@ -110,26 +110,22 @@ async function uploadArtifacts({
     results.map((result) => {
       const directory = path.dirname(result.path);
 
-      return core.group(
-        `Upload artifacts for ${result.gemspec.name}`,
-        async () =>
-          uploadGemArtifact({
-            gemspec: result.gemspec,
-            directory,
-            index: {
-              gem: {
-                filename: path.relative(directory, result.path),
-              },
-              attestations: [
-                {
-                  filename: path.relative(directory, result.provenancePath),
-                  mediaType: "application/vnd.dev.sigstore.bundle.v0.3+json",
-                },
-              ],
+      return uploadGemArtifact({
+        gemspec: result.gemspec,
+        directory,
+        index: {
+          gem: {
+            filename: path.relative(directory, result.path),
+          },
+          attestations: [
+            {
+              filename: path.relative(directory, result.provenancePath),
+              mediaType: "application/vnd.dev.sigstore.bundle.v0.3+json",
             },
-            retentionDays,
-          }),
-      );
+          ],
+        },
+        retentionDays,
+      });
     }),
   );
 }
@@ -181,7 +177,10 @@ async function run(): Promise<void> {
       token,
     }),
   );
-  await uploadArtifacts({ results, retentionDays });
+
+  await core.group("Upload artifacts", async () => {
+    await uploadArtifacts({ results, retentionDays });
+  });
 }
 
 export const completed = run().catch((err) => {
