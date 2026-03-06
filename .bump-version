@@ -1,0 +1,7 @@
+[bumpVersion]
+	scheme = semantic
+	tagPrefix = v
+	path = package.json
+	pattern = "\"version\": \"(?<version>.+?)\""
+	postCommand = pnpm build
+	postCommand = "ruby -e 'today = Time.now.strftime(%[%Y-%m-%d]); ARGV.each {|path| File.write(path, File.read(path).sub(/## Unreleased\\n\\K/i, %|\\n## v#{ENV.fetch(%[NEW_VERSION])} (#{today})\\n|)) }' CHANGELOG.md"
