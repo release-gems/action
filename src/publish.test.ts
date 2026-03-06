@@ -250,6 +250,42 @@ describe("publish action", () => {
     );
     // 2 gems + 2 attestations = 4 asset uploads.
     expect(mockUploadReleaseAsset).toHaveBeenCalledTimes(4);
+    expect(mockUploadReleaseAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "foo-1.0.0.gem",
+        headers: expect.objectContaining({
+          "content-type": "application/octet-stream",
+          "content-length": 8,
+        }),
+      }),
+    );
+    expect(mockUploadReleaseAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "foo-1.0.0.gem.sigstore.json",
+        headers: expect.objectContaining({
+          "content-type": "application/vnd.dev.sigstore.bundle.v0.3+json",
+          "content-length": 61,
+        }),
+      }),
+    );
+    expect(mockUploadReleaseAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "bar-2.0.0.gem",
+        headers: expect.objectContaining({
+          "content-type": "application/octet-stream",
+          "content-length": 8,
+        }),
+      }),
+    );
+    expect(mockUploadReleaseAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "bar-2.0.0.gem.sigstore.json",
+        headers: expect.objectContaining({
+          "content-type": "application/vnd.dev.sigstore.bundle.v0.3+json",
+          "content-length": 61,
+        }),
+      }),
+    );
     expect(mockUpdateRelease).toHaveBeenCalledWith(
       expect.objectContaining({ release_id: 42, draft: false }),
     );
@@ -330,6 +366,24 @@ describe("publish action", () => {
     expect(mockSetFailed).not.toHaveBeenCalled();
     expect(mockCreateRelease).not.toHaveBeenCalled();
     expect(mockUploadReleaseAsset).toHaveBeenCalled();
+    expect(mockUploadReleaseAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "foo-1.0.0.gem",
+        headers: expect.objectContaining({
+          "content-type": "application/octet-stream",
+          "content-length": 8,
+        }),
+      }),
+    );
+    expect(mockUploadReleaseAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "foo-1.0.0.gem.sigstore.json",
+        headers: expect.objectContaining({
+          "content-type": "application/vnd.dev.sigstore.bundle.v0.3+json",
+          "content-length": 61,
+        }),
+      }),
+    );
     expect(mockUpdateRelease).toHaveBeenCalledWith(
       expect.objectContaining({ release_id: 99, draft: false }),
     );

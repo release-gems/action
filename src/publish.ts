@@ -43,19 +43,12 @@ async function pushToRelease({
     ...index.attestations,
   ];
   for (const { filename, mediaType } of files) {
-    using data = {
-      stream: fs.createReadStream(path.join(directory, filename)),
-      [Symbol.dispose]() {
-        this.stream.close();
-      },
-    };
-
     await rel.uploadAsset({
       octokit,
       repo,
       release,
       name: filename,
-      data: data.stream,
+      assetPath: path.join(directory, filename),
       mediaType,
     });
   }

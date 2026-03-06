@@ -1,4 +1,4 @@
-import type * as fs from "node:fs";
+import * as fs from "node:fs";
 import type * as github from "@actions/github";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
@@ -64,14 +64,14 @@ export async function uploadAsset({
   repo,
   release,
   name,
-  data,
+  assetPath,
   mediaType = "application/octet-stream",
 }: {
   octokit: Octokit;
   repo: { owner: string; repo: string };
   release: Release;
   name: string;
-  data: fs.ReadStream;
+  assetPath: string;
   mediaType: string;
 }): Promise<undefined> {
   const existingAssetNames = new Set(release.assets.map((a) => a.name));
@@ -82,15 +82,19 @@ export async function uploadAsset({
     return;
   }
 
+  await using handle = await fs.promises.open(assetPath);
+  const stat = await handle.stat();
+
   const asset = await octokit.rest.repos.uploadReleaseAsset({
     ...repo,
     release_id: release.id,
     url: release.upload_url,
     name,
     // biome-ignore lint/suspicious/noExplicitAny: octokit type mismatch
-    data: data as any,
+    data: handle.createReadStream() as any,
     headers: {
       "content-type": mediaType,
+      "content-length": stat.size,
     },
   });
   console.log(`Uploaded '${name}' to release #${release.id}.`);
