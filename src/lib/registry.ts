@@ -20,9 +20,10 @@ export async function exchangeOidcToken(): Promise<string> {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${oidcToken}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
+      body: JSON.stringify({ jwt: oidcToken }),
     },
   );
 

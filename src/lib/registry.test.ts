@@ -62,7 +62,19 @@ describe("exchangeOidcToken", () => {
     );
   });
 
-  it("sends Authorization: Bearer header with the OIDC token", async () => {
+  it("sends the OIDC token as jwt in the JSON body", async () => {
+    mockGetIDToken.mockResolvedValue("my-oidc-jwt");
+    mockFetch.mockResolvedValue(
+      makeResponse(200, JSON.stringify({ api_key: "key" })),
+    );
+
+    await exchangeOidcToken();
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options?.body).toBe(JSON.stringify({ jwt: "my-oidc-jwt" }));
+  });
+
+  it("sends Content-Type and Accept: application/json headers", async () => {
     mockGetIDToken.mockResolvedValue("my-oidc-jwt");
     mockFetch.mockResolvedValue(
       makeResponse(200, JSON.stringify({ api_key: "key" })),
@@ -72,7 +84,8 @@ describe("exchangeOidcToken", () => {
 
     const [, options] = mockFetch.mock.calls[0];
     expect(options?.headers).toMatchObject({
-      Authorization: "Bearer my-oidc-jwt",
+      "Content-Type": "application/json",
+      Accept: "application/json",
     });
   });
 
