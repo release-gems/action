@@ -99,7 +99,7 @@ async function run(): Promise<void> {
     const release = await rel.getOrCreate({
       octokit,
       repo,
-      tag: tagInfo.tagName,
+      tag: tagInfo,
       ...releaseNote,
     });
     if (release.draft) {

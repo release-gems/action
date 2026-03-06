@@ -8,6 +8,7 @@ describe("parseTag", () => {
         kind: "unified",
         tagName: "v1.2.3",
         version: "1.2.3",
+        prerelease: false,
       });
     });
 
@@ -16,6 +17,7 @@ describe("parseTag", () => {
         kind: "unified",
         tagName: "v0.0.1",
         version: "0.0.1",
+        prerelease: false,
       });
     });
 
@@ -24,6 +26,7 @@ describe("parseTag", () => {
         kind: "unified",
         tagName: "v10.20.30",
         version: "10.20.30",
+        prerelease: false,
       });
     });
 
@@ -32,6 +35,7 @@ describe("parseTag", () => {
         kind: "unified",
         tagName: "v1.0.0.alpha1",
         version: "1.0.0.alpha1",
+        prerelease: true,
       });
     });
   });
@@ -43,6 +47,7 @@ describe("parseTag", () => {
         tagName: "my-gem/v1.0.0",
         gemName: "my-gem",
         version: "1.0.0",
+        prerelease: false,
       });
     });
 
@@ -52,6 +57,7 @@ describe("parseTag", () => {
         tagName: "foo-bar/v2.3.4",
         gemName: "foo-bar",
         version: "2.3.4",
+        prerelease: false,
       });
     });
 
@@ -61,6 +67,17 @@ describe("parseTag", () => {
         tagName: "some_gem/v0.1.0",
         gemName: "some_gem",
         version: "0.1.0",
+        prerelease: false,
+      });
+    });
+
+    it("parses refs/tags/my-gem/v1.0.0.beta1 as prerelease", () => {
+      expect(parseTag("refs/tags/my-gem/v1.0.0.beta1")).toEqual({
+        kind: "per-gem",
+        tagName: "my-gem/v1.0.0.beta1",
+        gemName: "my-gem",
+        version: "1.0.0.beta1",
+        prerelease: true,
       });
     });
   });

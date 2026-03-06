@@ -3,8 +3,14 @@ import type * as github from "@actions/github";
 type Octokit = ReturnType<typeof github.getOctokit>;
 
 export type TagInfo =
-  | { kind: "unified"; tagName: string; version: string }
-  | { kind: "per-gem"; tagName: string; gemName: string; version: string };
+  | { kind: "unified"; tagName: string; version: string; prerelease: boolean }
+  | {
+      kind: "per-gem";
+      tagName: string;
+      gemName: string;
+      version: string;
+      prerelease: boolean;
+    };
 
 /**
  * Parse a git ref string into TagInfo.
@@ -18,7 +24,12 @@ export function parseTag(ref: string): TagInfo | null {
   const unifiedMatch = ref.match(/^refs\/tags\/v([^/]+)$/);
   if (unifiedMatch) {
     const version = unifiedMatch[1];
-    return { kind: "unified", tagName: `v${version}`, version };
+    return {
+      kind: "unified",
+      tagName: `v${version}`,
+      version,
+      prerelease: isPrerelease(version),
+    };
   }
 
   // Per-gem tag: refs/tags/{name}/v{version}
@@ -31,10 +42,15 @@ export function parseTag(ref: string): TagInfo | null {
       tagName: `${gemName}/v${version}`,
       gemName,
       version,
+      prerelease: isPrerelease(version),
     };
   }
 
   return null;
+}
+
+function isPrerelease(version: string): boolean {
+  return /[a-zA-Z]/.test(version);
 }
 
 /**

@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import type * as github from "@actions/github";
+import type { TagInfo } from "./tag";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
 
@@ -19,12 +20,15 @@ export async function getOrCreate({
 }: {
   octokit: Octokit;
   repo: { owner: string; repo: string };
-  tag: string;
+  tag: TagInfo;
   name: string;
   body: string;
 }): Promise<Release> {
   try {
-    const existing = await octokit.rest.repos.getReleaseByTag({ ...repo, tag });
+    const existing = await octokit.rest.repos.getReleaseByTag({
+      ...repo,
+      tag: tag.tagName,
+    });
     return existing.data;
   } catch (err: unknown) {
     const status = (err as { status?: number }).status;
@@ -33,10 +37,11 @@ export async function getOrCreate({
     }
     const created = await octokit.rest.repos.createRelease({
       ...repo,
-      tag_name: tag,
+      tag_name: tag.tagName,
       name,
       body,
       draft: true,
+      prerelease: tag.prerelease,
     });
     return created.data;
   }
