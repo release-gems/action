@@ -15,8 +15,12 @@ export const RUBYGEMS_ORG = "rubygems.org";
  * Exchange a GitHub Actions OIDC token for a RubyGems.org short-lived API key
  * via the trusted publisher API.
  */
-export async function exchangeOidcToken(): Promise<string> {
-  const oidcToken = await core.getIDToken("rubygems.org");
+export async function exchangeOidcToken(aud = "rubygems.org"): Promise<string> {
+  core.info(`Requesting for OIDC token (aud: ${aud})`);
+
+  const oidcToken = await core.getIDToken(aud);
+
+  core.info("Exchanging OIDC token with ${registry.host}");
 
   const response = await fetch(
     "https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token",
@@ -37,12 +41,13 @@ export async function exchangeOidcToken(): Promise<string> {
     );
   }
 
-  const resp = ExchangeTokenResponseSchema.parse(await response.json());
-  core.setSecret(resp.rubygems_api_key);
+  const json = await response.json();
+  const result = ExchangeTokenResponseSchema.parse(json);
+  core.setSecret(result.rubygems_api_key);
 
-  core.info(`Credentials received: ${JSON.stringify(resp)}`);
+  core.info(`Credentials received: ${json}`);
 
-  return resp.rubygems_api_key;
+  return result.rubygems_api_key;
 }
 
 /**
@@ -69,6 +74,7 @@ export async function pushToRegistry(
   if (new URL(registry.host).hostname === RUBYGEMS_ORG) {
     apiKey = await exchangeOidcToken();
   } else {
+    // TODO: read ~/.gem/credentials
     apiKey = process.env.GEM_HOST_API_KEY ?? "";
     if (!apiKey) {
       throw new Error(
@@ -95,6 +101,8 @@ export async function pushToRegistry(
     ),
   );
 
+  core.info(`Uploading ${gemPath} to ${registry.host}`);
+
   const response = await fetch(apiUrl(registry, "api/v1/gems"), {
     method: "POST",
     headers: { Authorization: apiKey },
@@ -111,6 +119,8 @@ export async function pushToRegistry(
       `Failed to push gem to ${registry.host}: HTTP ${response.status} - ${responseBody}`,
     );
   }
+
+  core.info(`Uploaded ${gemPath} to ${registry.host}`);
 }
 
 function apiUrl({ host }: RegistryConfig, path: string): string {
