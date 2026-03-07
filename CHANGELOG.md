@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.0.3.alpha2 (2026-03-07)
+
 ## v1.0.3.alpha1 (2026-03-07)
 
 - Provenance attestation is now a single multi-subject bundle covering all the gems built in a job.
