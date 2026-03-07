@@ -1,6 +1,7 @@
 import commonjs from "@rollup/plugin-commonjs";
 import json from "@rollup/plugin-json";
 import nodeResolve from "@rollup/plugin-node-resolve";
+import replace from "@rollup/plugin-replace";
 import { defineConfig } from "rollup";
 import license from "rollup-plugin-license";
 import typescript from "rollup-plugin-typescript2";
@@ -30,6 +31,7 @@ const plugins = [
   commonjs(),
   json(),
   typescript(),
+  replace({ "import.meta.vitest": "undefined", preventAssignment: false }),
   license({
     banner,
     thirdParty: {
