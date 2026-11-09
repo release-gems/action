@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix bubblewrap setup failing when its AppArmor profile already exists on the runner.
+
 ## v1.2.1 (2026-03-31)
 
 - Error reporting now surfaces the full error tree, including cause chains and `AggregateError` sub-errors.

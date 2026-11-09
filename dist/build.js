@@ -124986,8 +124986,8 @@ async function setupBubblewrap(sandboxConfig) {
 	await new Promise((resolve, reject) => {
 		const script = [
 			"apt-get update",
-			"apt-get install -y bubblewrap apparmor-profiles",
-			"ln -s /usr/share/apparmor/extra-profiles/bwrap-userns-restrict /etc/apparmor.d/",
+			"apt-get install -y bubblewrap",
+			"if [ ! -e /etc/apparmor.d/bwrap-userns-restrict ] && [ ! -L /etc/apparmor.d/bwrap-userns-restrict ]; then apt-get install -y apparmor-profiles; ln -s /usr/share/apparmor/extra-profiles/bwrap-userns-restrict /etc/apparmor.d/; fi",
 			"systemctl reload apparmor"
 		].join("\n");
 		const child = node_child_process.spawn("sudo", ["bash", "-uexs"], { stdio: [
